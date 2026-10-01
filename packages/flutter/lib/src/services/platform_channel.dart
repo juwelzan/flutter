@@ -49,10 +49,15 @@ const bool kProfilePlatformChannels = false;
 
 bool _profilePlatformChannelsIsRunning = false;
 const Duration _profilePlatformChannelsRate = Duration(seconds: 1);
-final Expando<BinaryMessenger> _profiledBinaryMessengers = Expando<BinaryMessenger>();
+final Expando<BinaryMessenger> _profiledBinaryMessengers =
+    Expando<BinaryMessenger>();
 
 class _ProfiledBinaryMessenger implements BinaryMessenger {
-  const _ProfiledBinaryMessenger(this.proxy, this.channelTypeName, this.codecTypeName);
+  const _ProfiledBinaryMessenger(
+    this.proxy,
+    this.channelTypeName,
+    this.codecTypeName,
+  );
   final BinaryMessenger proxy;
   final String channelTypeName;
   final String codecTypeName;
@@ -66,16 +71,31 @@ class _ProfiledBinaryMessenger implements BinaryMessenger {
     return proxy.handlePlatformMessage(channel, data, callback);
   }
 
-  Future<ByteData?>? sendWithPostfix(String channel, String postfix, ByteData? message) async {
-    _debugRecordUpStream(channelTypeName, '$channel$postfix', codecTypeName, message);
-    final timelineTask = TimelineTask()..start('Platform Channel send $channel$postfix');
+  Future<ByteData?>? sendWithPostfix(
+    String channel,
+    String postfix,
+    ByteData? message,
+  ) async {
+    _debugRecordUpStream(
+      channelTypeName,
+      '$channel$postfix',
+      codecTypeName,
+      message,
+    );
+    final timelineTask = TimelineTask()
+      ..start('Platform Channel send $channel$postfix');
     final ByteData? result;
     try {
       result = await proxy.send(channel, message);
     } finally {
       timelineTask.finish();
     }
-    _debugRecordDownStream(channelTypeName, '$channel$postfix', codecTypeName, result);
+    _debugRecordDownStream(
+      channelTypeName,
+      '$channel$postfix',
+      codecTypeName,
+      result,
+    );
     return result;
   }
 
@@ -126,7 +146,9 @@ Future<void> _debugLaunchProfilePlatformChannels() async {
     _profilePlatformChannelsIsRunning = false;
     final log = StringBuffer();
     log.writeln('Platform Channel Stats:');
-    final List<_PlatformChannelStats> allStats = _profilePlatformChannelsStats.values.toList();
+    final List<_PlatformChannelStats> allStats = _profilePlatformChannelsStats
+        .values
+        .toList();
     // Sort highest combined bandwidth first.
     allStats.sort(
       (_PlatformChannelStats x, _PlatformChannelStats y) =>
@@ -148,11 +170,8 @@ void _debugRecordUpStream(
   String codecTypeName,
   ByteData? bytes,
 ) {
-  final _PlatformChannelStats stats = _profilePlatformChannelsStats[name] ??= _PlatformChannelStats(
-    name,
-    codecTypeName,
-    channelTypeName,
-  );
+  final _PlatformChannelStats stats = _profilePlatformChannelsStats[name] ??=
+      _PlatformChannelStats(name, codecTypeName, channelTypeName);
   stats.addUpStream(bytes?.lengthInBytes ?? 0);
   _debugLaunchProfilePlatformChannels();
 }
@@ -163,11 +182,8 @@ void _debugRecordDownStream(
   String codecTypeName,
   ByteData? bytes,
 ) {
-  final _PlatformChannelStats stats = _profilePlatformChannelsStats[name] ??= _PlatformChannelStats(
-    name,
-    codecTypeName,
-    channelTypeName,
-  );
+  final _PlatformChannelStats stats = _profilePlatformChannelsStats[name] ??=
+      _PlatformChannelStats(name, codecTypeName, channelTypeName);
   stats.addDownStream(bytes?.lengthInBytes ?? 0);
   _debugLaunchProfilePlatformChannels();
 }
@@ -205,8 +221,11 @@ class BasicMessageChannel<T> {
   ///
   /// The default [ServicesBinding.defaultBinaryMessenger] instance is used if
   /// [binaryMessenger] is null.
-  const BasicMessageChannel(this.name, this.codec, {BinaryMessenger? binaryMessenger})
-    : _binaryMessenger = binaryMessenger;
+  const BasicMessageChannel(
+    this.name,
+    this.codec, {
+    BinaryMessenger? binaryMessenger,
+  }) : _binaryMessenger = binaryMessenger;
 
   /// The logical channel on which communication happens, not null.
   final String name;
@@ -238,7 +257,9 @@ class BasicMessageChannel<T> {
   /// Returns a [Future] which completes to the received response, which may
   /// be null.
   Future<T?> send(T message) async {
-    return codec.decodeMessage(await binaryMessenger.send(name, codec.encodeMessage(message)));
+    return codec.decodeMessage(
+      await binaryMessenger.send(name, codec.encodeMessage(message)),
+    );
   }
 
   /// Sets a callback for receiving messages from the platform plugins on this
@@ -348,8 +369,14 @@ class MethodChannel {
   /// The `T` type argument is the expected return type. It is treated as
   /// nullable.
   @optionalTypeArgs
-  Future<T?> _invokeMethod<T>(String method, {required bool missingOk, dynamic arguments}) async {
-    final ByteData input = codec.encodeMethodCall(MethodCall(method, arguments));
+  Future<T?> _invokeMethod<T>(
+    String method, {
+    required bool missingOk,
+    dynamic arguments,
+  }) async {
+    final ByteData input = codec.encodeMethodCall(
+      MethodCall(method, arguments),
+    );
     final ByteData? result = shouldProfilePlatformChannels
         ? await (binaryMessenger as _ProfiledBinaryMessenger).sendWithPostfix(
             name,
@@ -361,7 +388,9 @@ class MethodChannel {
       if (missingOk) {
         return null;
       }
-      throw MissingPluginException('No implementation found for method $method on channel $name');
+      throw MissingPluginException(
+        'No implementation found for method $method on channel $name',
+      );
     }
     return codec.decodeEnvelope(result) as T?;
   }
@@ -548,8 +577,14 @@ class MethodChannel {
   /// See also:
   ///
   ///  * [invokeMethod], which this call delegates to.
-  Future<List<T>?> invokeListMethod<T>(String method, [dynamic arguments]) async {
-    final List<dynamic>? result = await invokeMethod<List<dynamic>>(method, arguments);
+  Future<List<T>?> invokeListMethod<T>(
+    String method, [
+    dynamic arguments,
+  ]) async {
+    final List<dynamic>? result = await invokeMethod<List<dynamic>>(
+      method,
+      arguments,
+    );
     return result?.cast<T>();
   }
 
@@ -562,11 +597,12 @@ class MethodChannel {
   /// See also:
   ///
   ///  * [invokeMethod], which this call delegates to.
-  Future<Map<K, V>?> invokeMapMethod<K, V>(String method, [dynamic arguments]) async {
-    final Map<dynamic, dynamic>? result = await invokeMethod<Map<dynamic, dynamic>>(
-      method,
-      arguments,
-    );
+  Future<Map<K, V>?> invokeMapMethod<K, V>(
+    String method, [
+    dynamic arguments,
+  ]) async {
+    final Map<dynamic, dynamic>? result =
+        await invokeMethod<Map<dynamic, dynamic>>(method, arguments);
     return result?.cast<K, V>();
   }
 
@@ -584,7 +620,9 @@ class MethodChannel {
   /// completes with a [MissingPluginException], an empty reply is sent
   /// similarly to what happens if no method call handler has been set.
   /// Any other exception results in an error envelope being sent.
-  void setMethodCallHandler(Future<dynamic> Function(MethodCall call)? handler) {
+  void setMethodCallHandler(
+    Future<dynamic> Function(MethodCall call)? handler,
+  ) {
     assert(
       _binaryMessenger != null || BindingBase.debugBindingType() != null,
       'Cannot set the method call handler before the binary messenger has been initialized. '
@@ -594,7 +632,9 @@ class MethodChannel {
     );
     binaryMessenger.setMessageHandler(
       name,
-      handler == null ? null : (ByteData? message) => _handleAsMethodCall(message, handler),
+      handler == null
+          ? null
+          : (ByteData? message) => _handleAsMethodCall(message, handler),
     );
   }
 
@@ -606,11 +646,18 @@ class MethodChannel {
     try {
       return codec.encodeSuccessEnvelope(await handler(call));
     } on PlatformException catch (e) {
-      return codec.encodeErrorEnvelope(code: e.code, message: e.message, details: e.details);
+      return codec.encodeErrorEnvelope(
+        code: e.code,
+        message: e.message,
+        details: e.details,
+      );
     } on MissingPluginException {
       return null;
     } catch (error) {
-      return codec.encodeErrorEnvelope(code: 'error', message: error.toString());
+      return codec.encodeErrorEnvelope(
+        code: 'error',
+        message: error.toString(),
+      );
     }
   }
 
@@ -630,7 +677,11 @@ class OptionalMethodChannel extends MethodChannel {
 
   @override
   Future<T?> invokeMethod<T>(String method, [dynamic arguments]) async {
-    return super._invokeMethod<T>(method, missingOk: true, arguments: arguments);
+    return super._invokeMethod<T>(
+      method,
+      missingOk: true,
+      arguments: arguments,
+    );
   }
 }
 
@@ -674,7 +725,8 @@ class EventChannel {
   /// [ServicesBinding.defaultBinaryMessenger]. In other contexts the default
   /// value is a [BackgroundIsolateBinaryMessenger] from
   /// [BackgroundIsolateBinaryMessenger.ensureInitialized].
-  BinaryMessenger get binaryMessenger => _binaryMessenger ?? _findBinaryMessenger();
+  BinaryMessenger get binaryMessenger =>
+      _binaryMessenger ?? _findBinaryMessenger();
   final BinaryMessenger? _binaryMessenger;
 
   /// Sets up a broadcast stream for receiving events on this channel.
@@ -715,7 +767,9 @@ class EventChannel {
               exception: exception,
               stack: stack,
               library: 'services library',
-              context: ErrorDescription('while activating platform stream on channel $name'),
+              context: ErrorDescription(
+                'while activating platform stream on channel $name',
+              ),
             ),
           );
         }
@@ -730,7 +784,9 @@ class EventChannel {
               exception: exception,
               stack: stack,
               library: 'services library',
-              context: ErrorDescription('while de-activating platform stream on channel $name'),
+              context: ErrorDescription(
+                'while de-activating platform stream on channel $name',
+              ),
             ),
           );
         }
